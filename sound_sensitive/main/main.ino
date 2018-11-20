@@ -1,24 +1,21 @@
 #include "userDef.h"
+#include <Adafruit_NeoPixel.h>
 #include <Microduino_ColorLED.h>    //Import the library for the ColorLED.
 #include <stdint.h>
 #include <Servo.h>
 
 unsigned long debounce_time_touch_pin = 0;
 
-ColorLED matrix = ColorLED(NUMPIXELS, LEDMATRIX_PIN, NEO_GRB + NEO_KHZ800);
+// ColorLED matrix = ColorLED(NUMPIXELS, LEDMATRIX_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel matrix = Adafruit_NeoPixel(NUMPIXELS, LEDMATRIX_PIN, NEO_GRB + NEO_KHZ800);
+int primary_color_pos = rand() % 3;  // Used to set primary color in array of len 3 where 0 = R, 1 = G, 2 = B (RGB)
+int primary_color = rand() % 55 + 200;
+int secondary_colors = rand() % 81;
+int color_sets [2][3];
+int iter_delay = 10; // Number of loops to show lights after noise has stopped
 
 uint8_t current_selection = 0;
 const uint8_t CURRENT_SELECTION_COUNT = 7;
-
-uint8_t color_matrix[CURRENT_SELECTION_COUNT][3]  = {
-  {1, 0, 0},
-  {0, 1, 0},
-  {0, 0, 1},
-  {0, 1, 1},
-  {1, 0, 1},
-  {1, 1, 0},
-  {1, 1, 1}
-};
 
 Servo myservo;  // create servo object to control a servo
 int servo_pos = 0;    // variable to store the servo position
@@ -36,9 +33,20 @@ void setup() {
   matrix.show();
 }
 
+
+void set_colors() {
+  for (uint16_t color_set = 0; color_set < 2; ++color_set) {
+    primary_color = rand() % 55 + 200;
+    secondary_colors = rand() % 81;
+    for (uint16_t rgb_pos = 0; rgb_pos < 2; ++rgb_pos) {
+      color_sets[color_set][rgb_pos] = secondary_colors;
+    }
+    color_sets[color_set][primary_color_pos] = primary_color;
+  }
+}
+
 void loop() {
   // put your main code here, to run repeatedly:
-
   //Check if touch button is pressed.
   if ( !digitalRead(TOUCH_PIN )
        &&
@@ -71,6 +79,8 @@ void loop() {
       if ((servo_pos + pos_change) >= 179) {
         servo_pos = 179;
         do_increment = false;
+        primary_color_pos = rand() % 3;
+        set_colors();
       } else {
         servo_pos = servo_pos + pos_change;
       }
@@ -78,6 +88,8 @@ void loop() {
       if ((servo_pos - pos_change) <= 1) {
         servo_pos = 1;
         do_increment = true;
+        primary_color_pos = rand() % 3;
+        set_colors();
       } else {
         servo_pos = servo_pos - pos_change;
       }
@@ -86,12 +98,15 @@ void loop() {
     myservo.write(servo_pos);              // tell servo to go to position in variable 'pos'
   }
 
-  //Determine the brightness of the leds by using the map function
   uint8_t brightness = map(mic_value, 0, MAX_THRESHOLD, 0, 255);
 
   //Set, but not show, the color and brightness of all the LEDs in the LED Matrix
   for (uint16_t j = 0; j < NUMPIXELS; ++j) {
-    matrix.setPixelColor(j, matrix.Color(color_matrix[current_selection][0] * brightness, color_matrix[current_selection][1] * brightness, color_matrix[current_selection][2] * brightness));
+    int selected_colors = rand() % 2;
+    matrix.setPixelColor(j,
+        matrix.Color(color_sets[selected_colors][0],
+                     color_sets[selected_colors][1],
+                     color_sets[selected_colors][2]));
   }
 
   //Actually execute and show the set values on the LEDs
