@@ -26,14 +26,23 @@ bool do_increment = true;
 
 
 void setup() {
+  // Initialize modules which have been set to run within the userDef
   Serial.begin(9600);
-  // put your setup code here, to run once:
+  // The mic is a must, I mean the entire thing revolves around sound
   pinMode(MIC_PIN, INPUT);
-  // pinMode(TOUCH_PIN, INPUT);
-  // myservo.attach(SERVO_PIN);  // attaches the servo on pin SDA to the servo object
+  
+  if (RUN_TOUCH_SENSOR) {
+    pinMode(TOUCH_PIN, INPUT);
+  }
 
-  matrix.begin();
-  matrix.show();
+  if (RUN_SERVO) {
+    myservo.attach(SERVO_PIN);
+  }
+
+  if (RUN_LED) {
+    matrix.begin();
+    matrix.show();
+  }
 }
 
 
@@ -77,7 +86,11 @@ void set_servo(uint16_t mic_value) {
 
   if (mic_value > 0) {
     pos_change = int(mic_value/100) + 1;
+
+    // do_increment is used to determine the direction the servo_pos will be updated
     if (do_increment) {
+      // The servo is only capable of 180 degrees of movement
+      // If the new position would match or exceed that number, reverse direction and cap servo_pos at 179
       if ((servo_pos + pos_change) >= 179) {
         servo_pos = 179;
         do_increment = false;
@@ -92,7 +105,7 @@ void set_servo(uint16_t mic_value) {
         servo_pos = servo_pos - pos_change;
       }
     }
-    myservo.write(servo_pos);              // tell servo to go to position in variable 'pos'
+    myservo.write(servo_pos);
   }
 }
 
@@ -123,8 +136,18 @@ void loop() {
     mic_value = MAX_THRESHOLD;
   }
 
-  // set_servo(mic_value);
-  set_colors(mic_value);
+
+  if (RUN_TOUCH_SENSOR) {
+    pinMode(TOUCH_PIN, INPUT);
+  }
+
+  if (RUN_SERVO) {
+    set_servo(mic_value);
+  }
+
+  if (RUN_LED) {
+    set_colors(mic_value);
+  }
 
   delay(50);
 }
