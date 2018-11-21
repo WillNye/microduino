@@ -8,11 +8,13 @@ unsigned long debounce_time_touch_pin = 0;
 
 // ColorLED matrix = ColorLED(NUMPIXELS, LEDMATRIX_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel matrix = Adafruit_NeoPixel(NUMPIXELS, LEDMATRIX_PIN, NEO_GRB + NEO_KHZ800);
+float brightness = 1;
 int primary_color_pos = rand() % 3;  // Used to set primary color in array of len 3 where 0 = R, 1 = G, 2 = B (RGB)
 int primary_color = rand() % 55 + 200;
 int secondary_colors = rand() % 81;
 int color_sets [2][3];
 int iter_delay = 10; // Number of loops to show lights after noise has stopped
+int color_aggregate_mic = 0; // Used to specify when to change colors
 
 uint8_t current_selection = 0;
 const uint8_t CURRENT_SELECTION_COUNT = 7;
@@ -26,27 +28,73 @@ void setup() {
   Serial.begin(9600);
   // put your setup code here, to run once:
   pinMode(MIC_PIN, INPUT);
-  pinMode(TOUCH_PIN, INPUT);
-  myservo.attach(SERVO_PIN);  // attaches the servo on pin SDA to the servo object
+  // pinMode(TOUCH_PIN, INPUT);
+  // myservo.attach(SERVO_PIN);  // attaches the servo on pin SDA to the servo object
 
   matrix.begin();
   matrix.show();
 }
 
 
-void set_colors() {
-  for (uint16_t color_set = 0; color_set < 2; ++color_set) {
-    primary_color = rand() % 55 + 200;
-    secondary_colors = rand() % 81;
-    for (uint16_t rgb_pos = 0; rgb_pos < 2; ++rgb_pos) {
-      color_sets[color_set][rgb_pos] = secondary_colors;
+void set_colors(uint16_t mic_value) {
+  if (mic_value > 0) {
+    int adjusted_mic_value = int(mic_value/100) + 1;
+    brightness = map(mic_value, 0, MAX_THRESHOLD, 0, 100);
+    color_aggregate_mic = color_aggregate_mic + adjusted_mic_value;
+
+    if (color_aggregate_mic > 180) {
+      color_aggregate_mic = 0;
+      primary_color_pos = rand() % 3;
+      secondary_colors = rand() % 81;
+      primary_color = rand() % 55 + 200;
     }
-    color_sets[color_set][primary_color_pos] = primary_color;
+  }
+
+  for (uint16_t color_set = 0; color_set < 2; ++color_set) {
+    for (uint16_t rgb_pos = 0; rgb_pos < 2; ++rgb_pos) {
+      color_sets[color_set][rgb_pos] = secondary_colors * brightness * (primary_color/secondary_colors);
+    }
+    color_sets[color_set][primary_color_pos] = primary_color * brightness;
+  }
+
+  //Set, but not show, the color and brightness of all the LEDs in the LED Matrix
+  for (uint16_t j = 0; j < NUMPIXELS; ++j) {
+    int selected_colors = rand() % 2;
+    matrix.setPixelColor(j,
+      matrix.Color(color_sets[selected_colors][0],
+                   color_sets[selected_colors][1],
+                   color_sets[selected_colors][2]));
+  }
+
+  //Actually execute and show the set values on the LEDs
+  matrix.show();
+}
+
+void set_servo(uint16_t mic_value) {
+  int pos_change = 0;
+
+  if (mic_value > 0) {
+    pos_change = int(mic_value/100) + 1;
+    if (do_increment) {
+      if ((servo_pos + pos_change) >= 179) {
+        servo_pos = 179;
+        do_increment = false;
+      } else {
+        servo_pos = servo_pos + pos_change;
+      }
+    } else {
+      if ((servo_pos - pos_change) <= 1) {
+        servo_pos = 1;
+        do_increment = true;
+      } else {
+        servo_pos = servo_pos - pos_change;
+      }
+    }
+    myservo.write(servo_pos);              // tell servo to go to position in variable 'pos'
   }
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
+void set_digitalRead() {
   //Check if touch button is pressed.
   if ( !digitalRead(TOUCH_PIN )
        &&
@@ -59,10 +107,11 @@ void loop() {
       current_selection = 0;
     }
   }
+}
 
+void loop() {
   //Read in the microphone value
   uint16_t mic_value = analogRead(MIC_PIN);
-  int pos_change = 0;
 
   //Check if the microphone value is under the ambient threshold, set mic value to 0 to ignore if it is under the threshold
   if (mic_value < AMBIENT_THRESHOLD) {
@@ -73,44 +122,18 @@ void loop() {
   if (mic_value > MAX_THRESHOLD) {
     mic_value = MAX_THRESHOLD;
   }
-  if (mic_value > 0) {
-    pos_change = int(mic_value/100) + 1;
-    if (do_increment) {
-      if ((servo_pos + pos_change) >= 179) {
-        servo_pos = 179;
-        do_increment = false;
-        primary_color_pos = rand() % 3;
-        set_colors();
-      } else {
-        servo_pos = servo_pos + pos_change;
-      }
-    } else {
-      if ((servo_pos - pos_change) <= 1) {
-        servo_pos = 1;
-        do_increment = true;
-        primary_color_pos = rand() % 3;
-        set_colors();
-      } else {
-        servo_pos = servo_pos - pos_change;
-      }
-    }
 
-    myservo.write(servo_pos);              // tell servo to go to position in variable 'pos'
-  }
-
-  uint8_t brightness = map(mic_value, 0, MAX_THRESHOLD, 0, 255);
-
-  //Set, but not show, the color and brightness of all the LEDs in the LED Matrix
-  for (uint16_t j = 0; j < NUMPIXELS; ++j) {
-    int selected_colors = rand() % 2;
-    matrix.setPixelColor(j,
-        matrix.Color(color_sets[selected_colors][0],
-                     color_sets[selected_colors][1],
-                     color_sets[selected_colors][2]));
-  }
-
-  //Actually execute and show the set values on the LEDs
-  matrix.show();
+  // set_servo(mic_value);
+  set_colors(mic_value);
 
   delay(50);
 }
+
+
+
+
+
+
+
+
+
