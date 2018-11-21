@@ -4,9 +4,12 @@
 #include <stdint.h>
 #include <Servo.h>
 
+// Touch sensor variables
 unsigned long debounce_time_touch_pin = 0;
+uint8_t current_selection = 0;
+const uint8_t CURRENT_SELECTION_COUNT = 7;
 
-// ColorLED matrix = ColorLED(NUMPIXELS, LEDMATRIX_PIN, NEO_GRB + NEO_KHZ800);
+// LED Matrix variables
 Adafruit_NeoPixel matrix = Adafruit_NeoPixel(NUMPIXELS, LEDMATRIX_PIN, NEO_GRB + NEO_KHZ800);
 float brightness = 1;
 int primary_color_pos = rand() % 3;  // Used to set primary color in array of len 3 where 0 = R, 1 = G, 2 = B (RGB)
@@ -16,9 +19,7 @@ int color_sets [2][3];
 int iter_delay = 10; // Number of loops to show lights after noise has stopped
 int color_aggregate_mic = 0; // Used to specify when to change colors
 
-uint8_t current_selection = 0;
-const uint8_t CURRENT_SELECTION_COUNT = 7;
-
+// Servo variables
 Servo myservo;  // create servo object to control a servo
 int servo_pos = 0;    // variable to store the servo position
 bool do_increment = true;
@@ -70,6 +71,7 @@ void set_colors(uint16_t mic_value) {
   matrix.show();
 }
 
+
 void set_servo(uint16_t mic_value) {
   int pos_change = 0;
 
@@ -94,6 +96,7 @@ void set_servo(uint16_t mic_value) {
   }
 }
 
+
 void set_digitalRead() {
   //Check if touch button is pressed.
   if ( !digitalRead(TOUCH_PIN )
@@ -109,17 +112,14 @@ void set_digitalRead() {
   }
 }
 
+
 void loop() {
-  //Read in the microphone value
   uint16_t mic_value = analogRead(MIC_PIN);
 
-  //Check if the microphone value is under the ambient threshold, set mic value to 0 to ignore if it is under the threshold
   if (mic_value < AMBIENT_THRESHOLD) {
     mic_value = 0;
   }
-  //Check if the microphone value is over the max loudness threshold
-  //If it is, set the microphone value to that threshold, this sets the max value for the microphone value
-  if (mic_value > MAX_THRESHOLD) {
+  else if (mic_value > MAX_THRESHOLD) {
     mic_value = MAX_THRESHOLD;
   }
 
@@ -128,12 +128,5 @@ void loop() {
 
   delay(50);
 }
-
-
-
-
-
-
-
 
 
