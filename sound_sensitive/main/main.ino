@@ -42,7 +42,7 @@ void set_colors(uint16_t mic_value) {
     brightness = map(mic_value, 0, MAX_THRESHOLD, 0, 100);
     color_aggregate_mic = color_aggregate_mic + adjusted_mic_value;
 
-    if (color_aggregate_mic > 180) {
+    if (color_aggregate_mic > 400) {
       color_aggregate_mic = 0;
       primary_color_pos = rand() % 3;
       secondary_colors = rand() % 81;
